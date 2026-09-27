@@ -1,4 +1,4 @@
-# spark-vector PySpark example
+# VecRuntime PySpark example
 
 Using [VecRuntime](https://github.com/vecruntime/vecruntime) from PySpark, with
 [uv](https://docs.astral.sh/uv/) managing the environment.
