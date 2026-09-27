@@ -22,10 +22,10 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-SPARK_VECTOR_VERSION = "0.0.1"
+SPARK_VECTOR_VERSION = "0.0.3"
 HADOOP_VERSION = "3.4.3"
 
-_SPARK_VECTOR_REPO = "https://raw.githubusercontent.com/spark-vector/spark-vector/maven-repo"
+_SPARK_VECTOR_REPO = "https://raw.githubusercontent.com/vecruntime/vecruntime/maven-repo"
 _MAVEN_CENTRAL = "https://repo1.maven.org/maven2"
 
 JARS_DIR = Path(__file__).resolve().parent / "jars"
@@ -34,7 +34,7 @@ JARS_DIR = Path(__file__).resolve().parent / "jars"
 _JARS = {
     "plugin": (
         f"spark-vector-spark_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/sparkvector/spark-vector-spark_2.13/{SPARK_VECTOR_VERSION}",
+        f"{_SPARK_VECTOR_REPO}/io/vecruntime/vecruntime_2.13/{SPARK_VECTOR_VERSION}",
     ),
     "hadoop-api": (
         f"hadoop-client-api-{HADOOP_VERSION}.jar",
@@ -57,8 +57,8 @@ def _central(group: str, artifact: str, version: str) -> tuple[str, str]:
 # zstd-jni...) -- the same set upstream's benchmarks/k8s/Dockerfile adds to Spark's jars.
 _SHUFFLE_JARS = {
     "shuffle": (
-        f"spark-vector-shuffle_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/sparkvector/spark-vector-shuffle_2.13/{SPARK_VECTOR_VERSION}",
+        f"vecruntime-shuffle_2.13-{SPARK_VECTOR_VERSION}.jar",
+        f"{_SPARK_VECTOR_REPO}/io/sparkvector/vecruntime-shuffle_2.13/{SPARK_VECTOR_VERSION}",
     ),
     **{
         artifact: _central(group, artifact, version)
@@ -85,9 +85,9 @@ _SHUFFLE_JARS = {
     },
 }
 
-VECTOR_SHUFFLE_MANAGER = "org.apache.spark.sql.vector.shuffle.VectorShuffleManager"
+VECTOR_SHUFFLE_MANAGER = "org.apache.spark.sql.vecruntime.shuffle.VectorShuffleManager"
 
-# Needed on every JVM that runs spark-vector kernels (driver and executors).
+# Needed on every JVM that runs vecruntime kernels (driver and executors).
 JVM_OPTIONS = " ".join(
     [
         "--add-modules=jdk.incubator.vector",
@@ -171,10 +171,10 @@ def ensure_java25() -> Path:
 
 def build_session(app_name: str = "spark-vector-example", master: str = "local[*]",
                   driver_memory: str = "4g", columnar_shuffle: bool = False) -> SparkSession:
-    """A local SparkSession with spark-vector enabled.
+    """A local SparkSession with vecruntime enabled.
 
     The plugin reads its keys from the session's SQLConf, so
-    `spark.conf.set("spark.vector.enabled", "false")` switches it off per query.
+    `spark.conf.set("spark.vecruntime.enabled", "false")` switches it off per query.
 
     columnar_shuffle=True also installs spark-vector's shuffle manager, so exchanges
     between spark-vector operators move Arrow record batches instead of rows. The
@@ -197,20 +197,20 @@ def build_session(app_name: str = "spark-vector-example", master: str = "local[*
     if columnar_shuffle:
         builder = (
             builder.config("spark.shuffle.manager", VECTOR_SHUFFLE_MANAGER)
-            .config("spark.vector.shuffle.enabled", "true")
+            .config("spark.vecruntime.shuffle.enabled", "true")
         )
         if master.startswith("local"):
             # Each executor runs an Arrow Flight server for remote shuffle fetches. It has no
             # TLS and, without spark.authenticate, no auth: in local mode there is no remote
             # executor, so keep it off the network interfaces.
-            builder = builder.config("spark.vector.shuffle.flight.bindHost", "127.0.0.1")
+            builder = builder.config("spark.vecruntime.shuffle.flight.bindHost", "127.0.0.1")
 
     return (
         builder.appName(app_name)
         .master(master)
         .config("spark.driver.memory", driver_memory)
         # The plugin: registers the planner rule and the "Vector Acceleration" UI tab.
-        .config("spark.plugins", "io.sparkvector.spark.VectorPlugin")
+        .config("spark.plugins", "io.vecruntime.spark.VectorPlugin")
         .config("spark.driver.extraClassPath", driver_cp)
         .config("spark.driver.extraJavaOptions", JVM_OPTIONS)
         .config("spark.executor.extraJavaOptions", JVM_OPTIONS)
