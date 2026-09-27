@@ -33,7 +33,7 @@ JARS_DIR = Path(__file__).resolve().parent / "jars"
 # (file name, base URL of the artifact directory)
 _JARS = {
     "plugin": (
-        f"spark-vector-spark_2.13-{SPARK_VECTOR_VERSION}.jar",
+        f"vecruntime-spark_2.13-{SPARK_VECTOR_VERSION}.jar",
         f"{_SPARK_VECTOR_REPO}/io/vecruntime/vecruntime_2.13/{SPARK_VECTOR_VERSION}",
     ),
     "hadoop-api": (
