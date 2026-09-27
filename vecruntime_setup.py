@@ -1,6 +1,6 @@
-"""Everything needed to start a PySpark session with the spark-vector plugin.
+"""Everything needed to start a PySpark session with the vecruntime plugin.
 
-spark-vector runs on Spark 4.1 + JDK 25. Two things differ from a stock
+vecruntime runs on Spark 4.1 + JDK 25. Two things differ from a stock
 `pip install pyspark` session:
 
 1. The JVM must be JDK 25 with the Vector API incubator module enabled.
@@ -34,7 +34,7 @@ JARS_DIR = Path(__file__).resolve().parent / "jars"
 _JARS = {
     "plugin": (
         f"vecruntime-spark_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/vecruntime/vecruntime_2.13/{SPARK_VECTOR_VERSION}",
+        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-spark_2.13/{SPARK_VECTOR_VERSION}",
     ),
     "hadoop-api": (
         f"hadoop-client-api-{HADOOP_VERSION}.jar",
@@ -52,13 +52,13 @@ def _central(group: str, artifact: str, version: str) -> tuple[str, str]:
 
 
 # The columnar shuffle (Arrow IPC over Arrow Flight). The shuffle jar is not self-contained:
-# it needs Arrow Flight and gRPC. This is the runtime closure of spark-vector-shuffle 0.0.1
+# it needs Arrow Flight and gRPC. This is the runtime closure of vecruntime-shuffle 0.0.3
 # minus what PySpark 4.1.3 already ships (Arrow 18.3.0, Netty 4.2, Guava 33.4.8, gson, jsr305,
 # zstd-jni...) -- the same set upstream's benchmarks/k8s/Dockerfile adds to Spark's jars.
 _SHUFFLE_JARS = {
     "shuffle": (
         f"vecruntime-shuffle_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/sparkvector/vecruntime-shuffle_2.13/{SPARK_VECTOR_VERSION}",
+        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-shuffle_2.13/{SPARK_VECTOR_VERSION}",
     ),
     **{
         artifact: _central(group, artifact, version)
