@@ -1,9 +1,9 @@
 # spark-vector PySpark example
 
-Using [spark-vector](https://github.com/spark-vector/spark-vector) from PySpark, with
+Using [VecRuntime](https://github.com/vecruntime/vecruntime) from PySpark, with
 [uv](https://docs.astral.sh/uv/) managing the environment.
 
-spark-vector is a Spark SQL plugin that replaces Filter, Project, HashAggregate, Sort, joins,
+VecRuntime is a Spark plugin that replaces Filter, Project, HashAggregate, Sort, joins,
 windows and other operators with columnar operators built on the Java Vector API (SIMD, no
 native code). Your PySpark code stays the same: the plugin rewrites the physical plan, and
 anything it can't convert falls back to Spark.
@@ -20,13 +20,13 @@ and whether the two results match.
 | JDK 25 | `brew install openjdk@25`, or any JDK 25 set as `JAVA_HOME` |
 | Python | 3.10 to 3.13 (uv installs it if missing) |
 
-uv installs PySpark 4.1.3. spark-vector 0.0.1 supports only Spark 4.1 with Scala 2.13, on JDK 25.
+uv installs PySpark 4.1.3 VecRuntime 0.0.3 supports only Spark 4.1 with Scala 2.13, on JDK 25.
 
 ## Quick start
 
 ```bash
-git clone https://github.com/spark-vector/spark-vector-pyspark-example
-cd spark-vector-pyspark-example
+git clone https://github.com/vecruntime/pyspark-example
+cd pyspark-example
 uv run example.py
 ```
 
@@ -63,14 +63,14 @@ that fell back to Spark.
 
 ## The queries
 
-| Query | Shape | Operators spark-vector runs |
+| Query | Shape | Operators VecRuntime runs |
 |---|---|---|
 | `pricing_summary` | TPC-H Q1: selective filter, grouped aggregate, `ORDER BY` | Filter, Project, HashAggregate (partial and final), Sort* |
 | `region_revenue` | filter, broadcast join to `stores`, aggregate with `countDistinct`, top 20 | Filter, Project, BroadcastHashJoin, HashAggregate, TakeOrderedAndProject |
 | `store_ranking` | join, aggregate, `rank()` per region, filter on the rank | Filter, Project, BroadcastHashJoin, HashAggregate, Sort |
 
-\* The final sort only runs on spark-vector with `--vector-shuffle`. Otherwise its input comes
-through Spark's row shuffle, and spark-vector leaves such sorts to Spark.
+\* The final sort only runs on VecRuntime with `--vector-shuffle`. Otherwise its input comes
+through Spark's row shuffle, and VecRuntime leaves such sorts to Spark.
 
 ## Results
 
@@ -116,21 +116,21 @@ spark.conf.set("spark.vector.enabled", "false") # per-query off switch (SQL conf
 | Sets `spark.sql.columnVector.offheap.enabled=true` | spark-vector can read the Parquet reader's batches in place instead of copying them |
 
 The jars come from spark-vector's Maven repository
-(`https://raw.githubusercontent.com/spark-vector/spark-vector/maven-repo/`, coordinates
-`io.sparkvector:spark-vector-spark_2.13:0.0.1`) and from Maven Central.
+(`https://raw.githubusercontent.com/vecruntime/vecruntime/maven-repo/`, coordinates
+`io.vecruntime:vecruntime_2.13:0.0.3`) and from Maven Central.
 
 ### The columnar shuffle
 
 `--vector-shuffle` (or `columnar_shuffle=True`) does the following:
 
-- Adds `spark-vector-shuffle_2.13` and the Arrow Flight and gRPC jars it needs.
+- Adds `vecruntime-shuffle_2.13` and the Arrow Flight and gRPC jars it needs.
   - It skips jars PySpark already ships, such as Arrow, Netty and Guava.
   - The set is the same one upstream's `benchmarks/k8s/Dockerfile` adds to a Spark image.
 - Sets two properties:
-  - `spark.shuffle.manager=org.apache.spark.sql.vector.shuffle.VectorShuffleManager`
-  - `spark.vector.shuffle.enabled=true`
+  - `spark.shuffle.manager=org.apache.spark.sql.vecruntime.shuffle.VectorShuffleManager`
+  - `spark.vecruntime.shuffle.enabled=true`
 
-With it on, exchanges between spark-vector operators move compressed Arrow record batches and
+With it on, exchanges between vecruntime operators move compressed Arrow record batches and
 never convert to rows. The shuffle manager is fixed for the session. It only handles
 spark-vector's own exchanges and leaves the rest to Spark's sort shuffle, so the plain-Spark
 baseline in the same session is unaffected.
@@ -139,8 +139,8 @@ Security: every executor runs an Arrow Flight server for shuffle fetches. It has
 has no authentication unless `spark.authenticate` is on. In local mode `build_session` binds it
 to `127.0.0.1`. On a cluster it must be reachable between executors, so enable
 `spark.authenticate`. Where RPC TLS (`spark.ssl.rpc.enabled`) is required, the server refuses to
-start; use `spark.vector.shuffle.backend=block` there. See upstream
-[`docs/flight-shuffle.md`](https://github.com/spark-vector/spark-vector/blob/main/docs/flight-shuffle.md).
+start; use `spark.vecruntime.shuffle.backend=block` there. See upstream
+[`docs/flight-shuffle.md`](https://github.com/vecruntime/vecruntime/blob/main/docs/flight-shuffle.md).
 
 ## On a cluster
 
@@ -149,17 +149,17 @@ use the same settings with `spark-submit` and bake the jars into the image:
 
 - Put JDK 25 on every node.
 - Replace `hadoop-client-api` and `hadoop-client-runtime` in `$SPARK_HOME/jars` with 3.4.3.
-- Put the spark-vector jars (and, for the shuffle, the Flight and gRPC jars) in `$SPARK_HOME/jars`.
+- Put the VecRuntime jars (and, for the shuffle, the Flight and gRPC jars) in `$SPARK_HOME/jars`.
 - Set `spark.plugins` and both `extraJavaOptions` as above.
 
 Upstream's
-[`benchmarks/k8s/Dockerfile`](https://github.com/spark-vector/spark-vector/blob/main/benchmarks/k8s/Dockerfile)
+[`benchmarks/k8s/Dockerfile`](https://github.com/vecruntime/vecruntime/blob/main/benchmarks/k8s/Dockerfile)
 builds such an image. Its README has a memory tuning section: the operators keep their tables on
 the heap and their batches in Arrow direct memory, so set `-XX:MaxDirectMemorySize` explicitly.
 
 ## What doesn't get accelerated
 
-spark-vector only takes columnar input, meaning Spark's vectorized Parquet reader, a Comet or
+VecRuntime only takes columnar input, meaning Spark's vectorized Parquet reader, a Comet or
 Iceberg vectorized scan, or another spark-vector operator. The following stay on Spark:
 
 - `spark.range(...)`, `createDataFrame` from Python objects, and cached tables (`df.cache()`)
@@ -167,8 +167,8 @@ Iceberg vectorized scan, or another spark-vector operator. The following stay on
 - regular expressions, `collect_list`/`percentile`, and nested-type accessors
 
 The full lists are in upstream's
-[README](https://github.com/spark-vector/spark-vector#requirements-and-known-limitations) and
-[`docs/expressions.md`](https://github.com/spark-vector/spark-vector/blob/main/docs/expressions.md).
+[README](https://github.com/vecruntime/vecruntime#requirements-and-known-limitations) and
+[`docs/expressions.md`](https://github.com/vecruntime/vecruntime/blob/main/docs/expressions.md).
 To see why an operator fell back, use the UI tab or set
 `spark.vector.explainFallback.enabled=true`.
 
@@ -176,7 +176,7 @@ To see why an operator fell back, use the UI tab or set
 
 | Symptom | Fix |
 |---|---|
-| `spark-vector needs JDK 25` | install JDK 25 or set `JAVA_HOME` to one |
+| `VecRuntime needs JDK 25` | install JDK 25 or set `JAVA_HOME` to one |
 | `UnsupportedOperationException: getSubject is supported only if a security manager is allowed` | the Hadoop 3.4.2 jars are loaded first: use `build_session`, or swap the jars in `$SPARK_HOME/jars` |
 | `could not attach the Vector Acceleration tab` | the plugin jar is only on `spark.jars`; put it on `spark.driver.extraClassPath` |
 | Everything falls back to Spark | the input isn't columnar (see above); check `spark.sql.parquet.enableVectorizedReader` |
