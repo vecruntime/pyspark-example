@@ -1,7 +1,7 @@
 [project]
-name = "spark-vector-pyspark-example"
+name = "vecruntine-pyspark-example"
 version = "0.1.0"
-description = "PySpark example accelerated by spark-vector, the JVM SIMD execution engine for Spark SQL"
+description = "PySpark example accelerated by vecruntime, the JVM SIMD execution engine for Spark SQL"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10,<3.14"
@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.urls]
-"spark-vector" = "https://github.com/spark-vector/spark-vector"
+"vecruntime" = "https://github.com/vecruntime/vecruntime"
 
 [tool.uv]
 package = false
