@@ -22,7 +22,7 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-SPARK_VECTOR_VERSION = "0.0.3"
+SPARK_VECTOR_VERSION = "0.0.6"
 HADOOP_VERSION = "3.4.3"
 
 _SPARK_VECTOR_REPO = "https://raw.githubusercontent.com/vecruntime/vecruntime/maven-repo"
@@ -52,7 +52,7 @@ def _central(group: str, artifact: str, version: str) -> tuple[str, str]:
 
 
 # The columnar shuffle (Arrow IPC over Arrow Flight). The shuffle jar is not self-contained:
-# it needs Arrow Flight and gRPC. This is the runtime closure of vecruntime-shuffle 0.0.3
+# it needs Arrow Flight and gRPC. This is the runtime closure of vecruntime-shuffle 0.0.6
 # minus what PySpark 4.1.3 already ships (Arrow 18.3.0, Netty 4.2, Guava 33.4.8, gson, jsr305,
 # zstd-jni...) -- the same set upstream's benchmarks/k8s/Dockerfile adds to Spark's jars.
 _SHUFFLE_JARS = {
