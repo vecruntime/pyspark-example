@@ -20,7 +20,7 @@ and whether the two results match.
 | JDK 25 | `brew install openjdk@25`, or any JDK 25 set as `JAVA_HOME` |
 | Python | 3.10 to 3.13 (uv installs it if missing) |
 
-uv installs PySpark 4.1.3 VecRuntime 0.0.3 supports only Spark 4.1 with Scala 2.13, on JDK 25.
+uv installs PySpark 4.1.3 VecRuntime 0.0.6 supports only Spark 4.1 with Scala 2.13, on JDK 25.
 
 ## Quick start
 
@@ -117,7 +117,7 @@ spark.conf.set("spark.vector.enabled", "false") # per-query off switch (SQL conf
 
 The jars come from spark-vector's Maven repository
 (`https://raw.githubusercontent.com/vecruntime/vecruntime/maven-repo/`, coordinates
-`io.vecruntime:vecruntime_2.13:0.0.3`) and from Maven Central.
+`io.vecruntime:vecruntime_2.13:0.0.6`) and from Maven Central.
 
 ### The columnar shuffle
 
