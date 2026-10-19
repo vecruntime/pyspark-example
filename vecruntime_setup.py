@@ -1,6 +1,6 @@
-"""Everything needed to start a PySpark session with the vecruntime plugin.
+"""Everything needed to start a PySpark session with the spark-vector plugin.
 
-vecruntime runs on Spark 4.1 + JDK 25. Two things differ from a stock
+spark-vector runs on Spark 4.1 + JDK 25. Two things differ from a stock
 `pip install pyspark` session:
 
 1. The JVM must be JDK 25 with the Vector API incubator module enabled.
@@ -22,7 +22,9 @@ from pathlib import Path
 
 from pyspark.sql import SparkSession
 
-SPARK_VECTOR_VERSION = "0.0.6"
+SPARK_VECTOR_VERSION = "0.0.9"
+# Since 0.0.7 the artifacts carry the Spark feature line: vecruntime-spark_<line>_2.13.
+SPARK_LINE = "4.1"  # matches the pinned PySpark 4.1.3
 HADOOP_VERSION = "3.4.3"
 
 _SPARK_VECTOR_REPO = "https://raw.githubusercontent.com/vecruntime/vecruntime/maven-repo"
@@ -33,8 +35,8 @@ JARS_DIR = Path(__file__).resolve().parent / "jars"
 # (file name, base URL of the artifact directory)
 _JARS = {
     "plugin": (
-        f"vecruntime-spark_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-spark_2.13/{SPARK_VECTOR_VERSION}",
+        f"vecruntime-spark_{SPARK_LINE}_2.13-{SPARK_VECTOR_VERSION}.jar",
+        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-spark_{SPARK_LINE}_2.13/{SPARK_VECTOR_VERSION}",
     ),
     "hadoop-api": (
         f"hadoop-client-api-{HADOOP_VERSION}.jar",
@@ -52,13 +54,13 @@ def _central(group: str, artifact: str, version: str) -> tuple[str, str]:
 
 
 # The columnar shuffle (Arrow IPC over Arrow Flight). The shuffle jar is not self-contained:
-# it needs Arrow Flight and gRPC. This is the runtime closure of vecruntime-shuffle 0.0.6
+# it needs Arrow Flight and gRPC. This is the runtime closure of vecruntime-shuffle 0.0.9
 # minus what PySpark 4.1.3 already ships (Arrow 18.3.0, Netty 4.2, Guava 33.4.8, gson, jsr305,
 # zstd-jni...) -- the same set upstream's benchmarks/k8s/Dockerfile adds to Spark's jars.
 _SHUFFLE_JARS = {
     "shuffle": (
-        f"vecruntime-shuffle_2.13-{SPARK_VECTOR_VERSION}.jar",
-        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-shuffle_2.13/{SPARK_VECTOR_VERSION}",
+        f"vecruntime-shuffle_{SPARK_LINE}_2.13-{SPARK_VECTOR_VERSION}.jar",
+        f"{_SPARK_VECTOR_REPO}/io/github/vecruntime/vecruntime-shuffle_{SPARK_LINE}_2.13/{SPARK_VECTOR_VERSION}",
     ),
     **{
         artifact: _central(group, artifact, version)
@@ -194,6 +196,15 @@ def build_session(app_name: str = "spark-vector-example", master: str = "local[*
     driver_cp = os.pathsep.join(str(path) for key, path in jars.items())
 
     builder = SparkSession.builder
+    if master.startswith("local"):
+        # The Spark UI has no authentication and binds to SPARK_LOCAL_IP, falling back to
+        # 0.0.0.0 (every interface). Keep it, and the driver RPC, on loopback in local mode.
+        # Must be set before the JVM starts; it only affects this process and its children.
+        os.environ["SPARK_LOCAL_IP"] = "127.0.0.1"
+        builder = (
+            builder.config("spark.driver.host", "127.0.0.1")
+            .config("spark.driver.bindAddress", "127.0.0.1")
+        )
     if columnar_shuffle:
         builder = (
             builder.config("spark.shuffle.manager", VECTOR_SHUFFLE_MANAGER)
